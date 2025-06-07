@@ -1,5 +1,3 @@
-from polyfactory.factories.pydantic_factory import ModelFactory
-
 from thetagang.config import (
     AccountConfig,
     Config,
@@ -10,45 +8,21 @@ from thetagang.config import (
 )
 
 
-class TargetConfigFactory(ModelFactory[TargetConfig]): ...
-
-
-class TargetConfigPutsFactory(ModelFactory[TargetConfig.Puts]): ...
-
-
-class TargetConfigCallsFactory(ModelFactory[TargetConfig.Calls]): ...
-
-
-class RollWhenConfigFactory(ModelFactory[RollWhenConfig]): ...
-
-
-class OptionChainsConfigFactory(ModelFactory[OptionChainsConfig]): ...
-
-
-class AccountConfigFactory(ModelFactory[AccountConfig]): ...
-
-
-class SymbolConfigFactory(ModelFactory[SymbolConfig]): ...
-
-
-class SymbolConfigPutsFactory(ModelFactory[SymbolConfig.Puts]): ...
-
-
-class SymbolConfigCallsFactory(ModelFactory[SymbolConfig.Calls]): ...
-
-
-class ConfigFactory(ModelFactory[Config]): ...
+def _base_config(symbol: SymbolConfig) -> Config:
+    return Config(
+        account=AccountConfig(number="TEST", margin_usage=1.0),
+        option_chains=OptionChainsConfig(expirations=1, strikes=1),
+        roll_when=RollWhenConfig(dte=1),
+        target=TargetConfig(dte=1, minimum_open_interest=0),
+        symbols={"AAPL": symbol},
+    )
 
 
 def test_trading_is_allowed_with_symbol_no_trading() -> None:
-    config = ConfigFactory.build(
-        symbols={"AAPL": SymbolConfigFactory.build(no_trading=True, weight=1.0)},
-    )
+    config = _base_config(SymbolConfig(no_trading=True, weight=1.0))
     assert not config.trading_is_allowed("AAPL")
 
 
 def test_trading_is_allowed_with_symbol_trading_allowed() -> None:
-    config = ConfigFactory.build(
-        symbols={"AAPL": SymbolConfigFactory.build(no_trading=False, weight=1.0)},
-    )
+    config = _base_config(SymbolConfig(no_trading=False, weight=1.0))
     assert config.trading_is_allowed("AAPL")
