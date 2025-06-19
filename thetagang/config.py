@@ -524,9 +524,10 @@ class Config(BaseModel, DisplayMixin):
 
     @model_validator(mode="after")
     def check_symbol_weights(self) -> Self:
-        total_weight = sum(s.weight or 0.0 for s in self.symbols.values())
-        if total_weight <= 0:
-            raise ValueError("Symbol weights must be positive")
+        if not math.isclose(
+            1, sum([s.weight or 0.0 for s in self.symbols.values()]), rel_tol=1e-5
+        ):
+            raise ValueError("Symbol weights must sum to 1.0")
         return self
 
     def get_target_delta(self, symbol: str, right: str) -> float:

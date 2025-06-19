@@ -4,13 +4,13 @@ from datetime import date, timedelta
 from ib_async import Option, Order, PortfolioItem
 from ib_async.contract import Stock
 
-from thetagang.config import (
-    AccountConfig,
-    Config,
-    OptionChainsConfig,
-    RollWhenConfig,
-    SymbolConfig,
-    TargetConfig,
+from thetagang.test_config import (
+    ConfigFactory,
+    SymbolConfigFactory,
+    SymbolConfigPutsFactory,
+    TargetConfigCallsFactory,
+    TargetConfigFactory,
+    TargetConfigPutsFactory,
 )
 from thetagang.util import (
     calculate_net_short_positions,
@@ -19,16 +19,6 @@ from thetagang.util import (
     weighted_avg_short_strike,
     would_increase_spread,
 )
-
-
-def _base_config(symbol: SymbolConfig, target: TargetConfig | None = None) -> Config:
-    return Config(
-        account=AccountConfig(number="TEST", margin_usage=1.0),
-        option_chains=OptionChainsConfig(expirations=1, strikes=1),
-        roll_when=RollWhenConfig(dte=1),
-        target=target or TargetConfig(dte=1, minimum_open_interest=0),
-        symbols={"SPY": symbol},
-    )
 
 
 def test_position_pnl() -> None:
@@ -89,14 +79,14 @@ def test_position_pnl() -> None:
             tradingClass="SPY",
         ),
         position=-1.0,
-        marketPrice=2.7256999,
-        marketValue=-272.57,
-        averageCost=565.76,
-        unrealizedPNL=293.19,
+        marketPrice=0.08,
+        marketValue=-8.0,
+        averageCost=96.422,
+        unrealizedPNL=88.42,
         realizedPNL=0.0,
         account="DU2962946",
     )
-    assert round(position_pnl(spy_call), 2) == 0.52
+    assert round(position_pnl(spy_call), 2) == 0.92
 
     spy_put = PortfolioItem(
         contract=Option(
@@ -123,44 +113,66 @@ def test_position_pnl() -> None:
 
 
 def test_get_delta() -> None:
-    target_config = TargetConfig(dte=1, minimum_open_interest=0, delta=0.5)
-    symbol_config = SymbolConfig(weight=1.0)
-    config = _base_config(symbol_config, target_config)
+    target_config = TargetConfigFactory.build(delta=0.5, puts=None, calls=None)
+    symbol_config = SymbolConfigFactory.build(
+        weight=1.0, delta=None, puts=None, calls=None
+    )
+    config = ConfigFactory.build(target=target_config, symbols={"SPY": symbol_config})
     assert 0.5 == config.get_target_delta("SPY", "P")
     assert 0.5 == config.get_target_delta("SPY", "C")
 
-    target_config = TargetConfig(
-        dte=1,
-        minimum_open_interest=0,
-        delta=0.5,
-        puts=TargetConfig.Puts(delta=0.4),
+    target_config = TargetConfigFactory.build(
+        delta=0.5, puts=TargetConfigPutsFactory.build(delta=0.4), calls=None
     )
-    config = _base_config(symbol_config, target_config)
+    symbol_config = SymbolConfigFactory.build(
+        weight=1.0, delta=None, puts=None, calls=None
+    )
+    config = ConfigFactory.build(target=target_config, symbols={"SPY": symbol_config})
     assert 0.4 == config.get_target_delta("SPY", "P")
 
-    target_config = TargetConfig(
-        dte=1,
-        minimum_open_interest=0,
-        delta=0.5,
-        calls=TargetConfig.Calls(delta=0.4),
+    target_config = TargetConfigFactory.build(
+        delta=0.5, calls=TargetConfigCallsFactory.build(delta=0.4), puts=None
     )
-    config = _base_config(symbol_config, target_config)
+    symbol_config = SymbolConfigFactory.build(
+        weight=1.0, delta=None, puts=None, calls=None
+    )
+    config = ConfigFactory.build(target=target_config, symbols={"SPY": symbol_config})
     assert 0.5 == config.get_target_delta("SPY", "P")
 
-    config = _base_config(symbol_config, target_config)
+    target_config = TargetConfigFactory.build(
+        delta=0.5, calls=TargetConfigCallsFactory.build(delta=0.4), puts=None
+    )
+    symbol_config = SymbolConfigFactory.build(
+        weight=1.0, delta=None, puts=None, calls=None
+    )
+    config = ConfigFactory.build(target=target_config, symbols={"SPY": symbol_config})
     assert 0.4 == config.get_target_delta("SPY", "C")
 
-    symbol_config = SymbolConfig(weight=1.0, delta=0.3)
-    config = _base_config(symbol_config, target_config)
+    target_config = TargetConfigFactory.build(
+        delta=0.5, calls=TargetConfigCallsFactory.build(delta=0.4), puts=None
+    )
+    symbol_config = SymbolConfigFactory.build(
+        weight=1.0, delta=0.3, puts=None, calls=None
+    )
+    config = ConfigFactory.build(target=target_config, symbols={"SPY": symbol_config})
     assert 0.3 == config.get_target_delta("SPY", "C")
 
-    symbol_config = SymbolConfig(
-        weight=1.0,
-        delta=0.3,
-        puts=SymbolConfig.Puts(delta=0.2),
+    target_config = TargetConfigFactory.build(
+        delta=0.5, calls=TargetConfigCallsFactory.build(delta=0.4), puts=None
     )
-    config = _base_config(symbol_config, target_config)
+    symbol_config = SymbolConfigFactory.build(
+        weight=1.0, delta=0.3, puts=SymbolConfigPutsFactory.build(delta=0.2), calls=None
+    )
+    config = ConfigFactory.build(target=target_config, symbols={"SPY": symbol_config})
     assert 0.3 == config.get_target_delta("SPY", "C")
+
+    target_config = TargetConfigFactory.build(
+        delta=0.5, calls=TargetConfigCallsFactory.build(delta=0.4), puts=None
+    )
+    symbol_config = SymbolConfigFactory.build(
+        weight=1.0, delta=0.3, puts=SymbolConfigPutsFactory.build(delta=0.2), calls=None
+    )
+    config = ConfigFactory.build(target=target_config, symbols={"SPY": symbol_config})
     assert 0.2 == config.get_target_delta("SPY", "P")
 
 
@@ -247,15 +259,292 @@ def test_calculate_net_short_positions() -> None:
         "C",
     )
 
+    assert 2 == calculate_net_short_positions(
+        [
+            con(exp3dte, 69, "C", -1),
+            con(exp3dte, 69, "C", -1),
+            con(exp3dte, 69, "P", 1),
+            con(exp30dte, 69, "P", 1),
+        ],
+        "C",
+    )
+
+    assert 0 == calculate_net_short_positions(
+        [
+            con(exp3dte, 69, "C", -1),
+            con(exp3dte, 69, "C", -1),
+            con(exp3dte, 69, "C", 1),
+            con(exp30dte, 69, "C", 5),
+        ],
+        "C",
+    )
+
+    assert 0 == calculate_net_short_positions(
+        [
+            con(exp3dte, 69, "C", -1),
+            con(exp30dte, 69, "C", -1),
+            con(exp3dte, 69, "C", 1),
+            con(exp30dte, 69, "C", 5),
+        ],
+        "C",
+    )
+
+    assert 0 == calculate_net_short_positions(
+        [
+            con(exp3dte, 69, "P", -1),
+            con(exp30dte, 69, "P", -1),
+            con(exp3dte, 69, "P", 1),
+            con(exp30dte, 69, "P", 5),
+        ],
+        "P",
+    )
+
+    assert 0 == calculate_net_short_positions(
+        [
+            con(exp3dte, 70, "P", -1),
+            con(exp30dte, 69, "P", -1),
+            con(exp3dte, 69, "P", 1),
+            con(exp30dte, 70, "P", 5),
+        ],
+        "P",
+    )
+
+    assert 2 == calculate_net_short_positions(
+        [
+            con(exp3dte, 70, "P", -1),
+            con(exp30dte, 69, "P", -1),
+            con(exp3dte, 69, "P", 1),
+            con(exp30dte, 68, "P", 5),
+        ],
+        "P",
+    )
+
+    assert 0 == calculate_net_short_positions(
+        [
+            con(exp3dte, 70, "C", -1),
+            con(exp30dte, 69, "C", -1),
+            con(exp3dte, 69, "C", 1),
+            con(exp30dte, 68, "C", 5),
+        ],
+        "C",
+    )
+
+    assert 1 == calculate_net_short_positions(
+        [
+            con(exp3dte, 70, "C", -1),
+            con(exp30dte, 69, "C", -1),
+            con(exp3dte, 71, "C", 1),
+            con(exp30dte, 70, "C", 5),
+        ],
+        "C",
+    )
+
+    assert 2 == calculate_net_short_positions(
+        [
+            con(exp3dte, 70, "C", -1),
+            con(exp30dte, 71, "C", -1),
+            con(exp3dte, 71, "C", 1),
+            con(exp30dte, 72, "C", 5),
+        ],
+        "C",
+    )
+
+    assert 3 == calculate_net_short_positions(
+        [
+            con(exp3dte, 70, "C", -1),
+            con(exp30dte, 71, "C", -1),
+            con(exp90dte, 72, "C", -1),
+            con(exp3dte, 71, "C", 1),
+            con(exp30dte, 72, "C", 5),
+        ],
+        "C",
+    )
+
+    assert 5 == calculate_net_short_positions(
+        [
+            con(exp3dte, 60, "P", -10),
+            con(exp30dte, 69, "P", -1),
+            con(exp90dte, 69, "P", 1),
+            con(exp90dte, 68, "P", 5),
+        ],
+        "P",
+    )
+
+    assert 10 == calculate_net_short_positions(
+        [
+            con(exp3dte, 70, "P", -10),
+            con(exp30dte, 69, "P", -1),
+            con(exp90dte, 69, "P", 1),
+            con(exp90dte, 68, "P", 5),
+        ],
+        "P",
+    )
+
+    assert 0 == calculate_net_short_positions(
+        [
+            con(exp3dte, 60, "P", -10),
+            con(exp30dte, 69, "P", -1),
+            con(exp90dte, 69, "P", 1),
+            con(exp90dte, 68, "P", 50),
+        ],
+        "P",
+    )
+
+    # A couple real-world examples
+    exp9dte = (today + timedelta(days=9)).strftime("%Y%m%d")
+    exp16dte = (today + timedelta(days=16)).strftime("%Y%m%d")
+    exp23dte = (today + timedelta(days=23)).strftime("%Y%m%d")
+    exp30dte = (today + timedelta(days=30)).strftime("%Y%m%d")
+    exp37dte = (today + timedelta(days=37)).strftime("%Y%m%d")
+    exp268dte = (today + timedelta(days=268)).strftime("%Y%m%d")
+
+    assert 2 == calculate_net_short_positions(
+        [
+            con(exp9dte, 77.0, "P", -2),
+            con(exp16dte, 76.0, "P", -1),
+            con(exp16dte, 77.0, "P", -1),
+            con(exp23dte, 77.0, "P", -6),
+            con(exp30dte, 77.0, "P", -2),
+            con(exp37dte, 77.0, "P", -5),
+            con(exp268dte, 77.0, "P", 15),
+        ],
+        "P",
+    )
+
+    assert 0 == calculate_net_short_positions(
+        [
+            con(exp9dte, 77.0, "P", -2),
+            con(exp16dte, 76.0, "P", -1),
+            con(exp16dte, 77.0, "P", -1),
+            con(exp23dte, 77.0, "P", -6),
+            con(exp30dte, 77.0, "P", -2),
+            con(exp37dte, 77.0, "P", -5),
+            con(exp268dte, 77.0, "P", 15),
+        ],
+        "C",
+    )
+
+    assert 20 == calculate_net_short_positions(
+        [
+            con(exp23dte, 72.0, "C", -8),
+            con(exp30dte, 66.0, "C", -8),
+            con(exp30dte, 68.0, "C", -9),
+            con(exp30dte, 69.0, "C", -7),
+            con(exp30dte, 72.0, "C", -1),
+            con(exp37dte, 59.5, "C", -8),
+            con(exp37dte, 68.0, "C", -7),
+            con(exp268dte, 55.0, "C", 5),
+            con(exp268dte, 60.0, "C", 23),
+        ],
+        "C",
+    )
+
+    assert 0 == calculate_net_short_positions(
+        [
+            con(exp23dte, 72.0, "C", -8),
+            con(exp30dte, 66.0, "C", -8),
+            con(exp30dte, 68.0, "C", -9),
+            con(exp30dte, 69.0, "C", -7),
+            con(exp30dte, 72.0, "C", -1),
+            con(exp37dte, 59.5, "C", -8),
+            con(exp37dte, 68.0, "C", -7),
+            con(exp268dte, 55.0, "C", 5),
+            con(exp268dte, 60.0, "C", 23),
+        ],
+        "P",
+    )
+
 
 def test_weighted_avg_strike() -> None:
-    # both short
-    assert math.isclose(weighted_avg_short_strike([con("", 50, "C", -1), con("", 40, "P", -1)], "C"), 50)
-    assert math.isclose(weighted_avg_short_strike([con("", 50, "C", -1), con("", 40, "P", -1)], "P"), 40)
+    today = date.today()
+    exp3dte = (today + timedelta(days=3)).strftime("%Y%m%d")
+    exp30dte = (today + timedelta(days=30)).strftime("%Y%m%d")
+    exp90dte = (today + timedelta(days=90)).strftime("%Y%m%d")
 
-    # mix of short/long
-    assert math.isclose(weighted_avg_short_strike([con("", 50, "C", -1), con("", 40, "P", 1)], "C"), 50)
-    assert math.isclose(weighted_avg_long_strike([con("", 50, "C", 1), con("", 40, "P", 1)], "P"), 40)
+    assert math.isclose(
+        70,
+        weighted_avg_short_strike(
+            [
+                con(exp3dte, 70, "C", -1),
+                con(exp30dte, 70, "C", -1),
+                con(exp90dte, 70, "C", -1),
+                con(exp3dte, 100, "C", 1),
+                con(exp30dte, 100, "C", 5),
+            ],
+            "C",
+        )
+        or -1,
+    )
+    assert math.isclose(
+        100,
+        weighted_avg_long_strike(
+            [
+                con(exp3dte, 70, "C", -1),
+                con(exp30dte, 70, "C", -1),
+                con(exp90dte, 70, "C", -1),
+                con(exp3dte, 100, "C", 1),
+                con(exp30dte, 100, "C", 5),
+            ],
+            "C",
+        )
+        or -1,
+    )
+    assert math.isclose(
+        70,
+        weighted_avg_short_strike(
+            [
+                con(exp3dte, 70, "P", -1),
+                con(exp30dte, 70, "P", -1),
+                con(exp90dte, 70, "P", -1),
+                con(exp3dte, 100, "P", 1),
+                con(exp30dte, 100, "P", 5),
+            ],
+            "P",
+        )
+        or -1,
+    )
+    assert math.isclose(
+        100,
+        weighted_avg_long_strike(
+            [
+                con(exp3dte, 70, "P", -1),
+                con(exp30dte, 70, "P", -1),
+                con(exp90dte, 70, "P", -1),
+                con(exp3dte, 100, "P", 1),
+                con(exp30dte, 100, "P", 5),
+            ],
+            "P",
+        )
+        or -1,
+    )
+
+    assert math.isclose(
+        28,
+        weighted_avg_short_strike(
+            [
+                con(exp3dte, 10, "P", -4),
+                con(exp3dte, 100, "P", -1),
+                con(exp3dte, 100, "P", 4),
+                con(exp3dte, 10, "P", 1),
+            ],
+            "P",
+        )
+        or -1,
+    )
+
+    assert math.isclose(
+        82,
+        weighted_avg_long_strike(
+            [
+                con(exp3dte, 10, "P", -4),
+                con(exp3dte, 100, "P", -1),
+                con(exp3dte, 100, "P", 4),
+                con(exp3dte, 10, "P", 1),
+            ],
+            "P",
+        )
+        or -1,
+    )
 
 
 def test_would_increase_spread() -> None:
